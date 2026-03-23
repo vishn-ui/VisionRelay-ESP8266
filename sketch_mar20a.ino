@@ -1,59 +1,37 @@
-// ================= ESP8266 RELAY CONTROL =================
+#include <Arduino.h>
 
-// NodeMCU Pin Mapping:
-// D1 D2 D5 D6 D7 D0 D3 D4
-const int relayPins[8] = {0, 2, 5, 4, 14, 12, 13, 16,};
-
-String input = "";
+// NodeMCU Pin Mapping for 8 Relays
+const int relayPins[8] = {0, 2, 5, 4, 14, 12, 13, 16};
 
 void setup() {
   Serial.begin(115200);
 
-  // Initialize all relay pins
   for (int i = 0; i < 8; i++) {
     pinMode(relayPins[i], OUTPUT);
-    digitalWrite(relayPins[i], HIGH); // OFF (Active LOW)
+    digitalWrite(relayPins[i], HIGH); // Default OFF (Active LOW)
   }
-
-  Serial.println("✅ ESP8266 READY");
+  Serial.println("SYSTEM_READY");
 }
 
 void loop() {
+  if (Serial.available() > 0) {
+    String cmd = Serial.readStringUntil('\n');
+    cmd.trim();
 
-  // Read Serial Data
-  while (Serial.available()) {
-    char c = Serial.read();
+    if (cmd.length() >= 4 && cmd.startsWith("L")) {
+      // Extract relay number (e.g., from "L1ON" get '1')
+      int relayNum = cmd.substring(1, 2).toInt() - 1;
 
-    if (c == '\n') {
-      input.trim();
-      if (input.length() > 0) {
-        processCommand(input);
+      if (relayNum >= 0 && relayNum < 8) {
+        if (cmd.endsWith("ON")) {
+          digitalWrite(relayPins[relayNum], LOW);
+          Serial.printf("RELAY_%d_ON\n", relayNum + 1);
+        } 
+        else if (cmd.endsWith("OFF")) {
+          digitalWrite(relayPins[relayNum], HIGH);
+          Serial.printf("RELAY_%d_OFF\n", relayNum + 1);
+        }
       }
-      input = "";
-    } else {
-      input += c;
-    }
-  }
-}
-
-// ================= COMMAND PROCESS =================
-void processCommand(String cmd) {
-
-  Serial.println("📩 Received: " + cmd);
-
-  for (int i = 0; i < 8; i++) {
-
-    String onCmd  = "L" + String(i + 1) + "ON";
-    String offCmd = "L" + String(i + 1) + "OFF";
-
-    if (cmd == onCmd) {
-      digitalWrite(relayPins[i], LOW);   // ON
-      Serial.println("✅ Relay " + String(i + 1) + " ON");
-    }
-
-    else if (cmd == offCmd) {
-      digitalWrite(relayPins[i], HIGH);  // OFF
-      Serial.println("❌ Relay " + String(i + 1) + " OFF");
     }
   }
 }
